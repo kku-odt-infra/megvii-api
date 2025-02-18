@@ -23,12 +23,18 @@ git clone <repository-url>
 cd megvii-api
 ```
 
-2. ติดตั้ง dependencies:
+2. สร้างโปรเจค Node.js:
+
 ```bash
-npm install
+npm init -y
 ```
 
-3. สร้างไฟล์ `.env` และกำหนดค่าต่างๆ:
+3. ติดตั้ง dependencies:
+```bash
+npm install axios dotenv
+```
+
+4. สร้างไฟล์ `.env` และกำหนดค่าต่างๆ:
 ```env
 BASE_URL=http://your-api-server
 USER=your-username
