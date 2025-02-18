@@ -1,6 +1,5 @@
 require('dotenv').config();
 
-// ตรวจสอบว่ามีการตั้งค่าที่จำเป็นครบถ้วน
 const requiredEnvVars = [
   'API_BASE_URL',
   'API_TIMEOUT',

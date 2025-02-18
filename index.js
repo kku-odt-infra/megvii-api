@@ -4,8 +4,6 @@ async function main() {
   const auth = new AuthClient();
   
   try {
-    console.log('Starting authentication process...');
-    
     const authResult = await auth.authenticate();
     console.log('\nAuthentication successful!');
     console.log('Session ID:', authResult.session_id);
@@ -17,7 +15,6 @@ async function main() {
   }
 }
 
-// Run the example
 if (require.main === module) {
   main().then(sessionId => {
     if (sessionId) {

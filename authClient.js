@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('./config');
+const { requestToCurl } = require('./debug');
 
 class AuthClient {
   constructor() {
@@ -16,15 +17,21 @@ class AuthClient {
     this.credentials = config.api.credentials;
   }
 
-  /**
-   * Get challenge token for login
-   * @returns {Promise<{challenge: string, session_id: string}>}
-   */
   async getChallenge() {
     try {
-      const { data } = await this.client.get(
-        `/api/auth/login/challenge?username=${encodeURIComponent(this.credentials.username)}`
-      );
+      const requestConfig = {
+        method: 'get',
+        baseURL: this.client.defaults.baseURL,
+        url: `/api/auth/login/challenge?username=${encodeURIComponent(this.credentials.username)}`,
+        headers: this.client.defaults.headers
+      };
+
+      console.log('\nChallenge Request:');
+      console.log(requestToCurl(requestConfig));
+
+      const { data } = await this.client.request(requestConfig);
+      
+      console.log('Challenge Response:', data);
       
       this.sessionId = data.session_id;
       return {
@@ -32,43 +39,62 @@ class AuthClient {
         session_id: data.session_id
       };
     } catch (error) {
-      console.error('Challenge request failed:', error.message);
+      console.error('Challenge request failed:', {
+        status: error.response?.status,
+        data: error.response?.data
+      });
       throw new Error('Failed to get challenge token');
     }
   }
 
-  /**
-   * Attempt login with configured credentials
-   * @returns {Promise<{success: boolean, session_id: string}>}
-   */
   async login() {
     if (!this.sessionId) {
       throw new Error('Must get challenge before attempting login');
     }
 
     try {
-      const { data } = await this.client.post('/api/auth/login?type=web', {
-        session_id: this.sessionId,
-        username: this.credentials.username,
-        password: this.credentials.password
-      });
+      const requestConfig = {
+        method: 'post',
+        baseURL: this.client.defaults.baseURL,
+        url: '/api/auth/login?type=web',
+        headers: this.client.defaults.headers,
+        data: {
+          session_id: this.sessionId,
+          username: this.credentials.username,
+          password: this.credentials.password
+        }
+      };
+
+      console.log('\nLogin Request:');
+      console.log(requestToCurl(requestConfig));
+
+      const { data } = await this.client.request(requestConfig);
+      
+      console.log('Login Response:', data);
 
       return {
         success: true,
         session_id: this.sessionId
       };
     } catch (error) {
-      console.error('Login failed:', error.message);
+      console.error('Login failed:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       throw new Error('Authentication failed');
     }
   }
 
-  /**
-   * Complete authentication flow and return session details
-   * @returns {Promise<{success: boolean, session_id: string, challenge: string}>}
-   */
   async authenticate() {
     try {
+      console.log('\nStarting authentication flow...');
+      console.log('Config:', {
+        baseUrl: config.api.baseUrl,
+        username: this.credentials.username,
+        hasPassword: !!this.credentials.password
+      });
+
       const challengeResponse = await this.getChallenge();
       const loginResponse = await this.login();
 
@@ -83,10 +109,6 @@ class AuthClient {
     }
   }
 
-  /**
-   * Get current session ID
-   * @returns {string|null}
-   */
   getSessionId() {
     return this.sessionId;
   }
