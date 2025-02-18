@@ -54,7 +54,9 @@ class AuthClient {
     } catch (error) {
       console.error('Challenge request failed:', {
         status: error.response?.status,
-        data: error.response?.data
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
       });
       throw new Error('Failed to get challenge token');
     }
@@ -83,7 +85,7 @@ class AuthClient {
         }
       };
 
-      console.log('\nLogin Request with encrypted password:');
+      console.log('\nLogin Request:');
       console.log(requestToCurl(requestConfig));
 
       const { data } = await this.client.request(requestConfig);
@@ -97,7 +99,8 @@ class AuthClient {
       console.error('Login failed:', {
         status: error.response?.status,
         data: error.response?.data,
-        url: error.config?.url
+        url: error.config?.url,
+        method: error.config?.method
       });
       throw new Error('Authentication failed');
     }
@@ -112,7 +115,7 @@ class AuthClient {
         hasPassword: !!this.credentials.password
       });
 
-      const challengeResponse = await this.getChallenge();
+      await this.getChallenge();  // ต้องเรียก getChallenge ก่อน
       const loginResponse = await this.login();
 
       return {
