@@ -1,4 +1,5 @@
 const axios = require('axios');
+const crypto = require('crypto');
 const config = require('./config');
 const { requestToCurl } = require('./debug');
 
@@ -15,6 +16,15 @@ class AuthClient {
     
     this.sessionId = null;
     this.credentials = config.api.credentials;
+    this.salt = null;
+    this.challenge = null;
+  }
+
+  encryptPassword(password, salt) {
+    return crypto
+      .createHash('sha256')
+      .update(password + salt)
+      .digest('hex');
   }
 
   async getChallenge() {
@@ -30,13 +40,16 @@ class AuthClient {
       console.log(requestToCurl(requestConfig));
 
       const { data } = await this.client.request(requestConfig);
-      
       console.log('Challenge Response:', data);
       
       this.sessionId = data.session_id;
+      this.salt = data.salt;
+      this.challenge = data.challenge;
+      
       return {
         challenge: data.challenge,
-        session_id: data.session_id
+        session_id: data.session_id,
+        salt: data.salt
       };
     } catch (error) {
       console.error('Challenge request failed:', {
@@ -48,11 +61,16 @@ class AuthClient {
   }
 
   async login() {
-    if (!this.sessionId) {
+    if (!this.sessionId || !this.salt) {
       throw new Error('Must get challenge before attempting login');
     }
 
     try {
+      const encryptedPassword = this.encryptPassword(
+        this.credentials.password,
+        this.salt
+      );
+
       const requestConfig = {
         method: 'post',
         baseURL: this.client.defaults.baseURL,
@@ -61,15 +79,14 @@ class AuthClient {
         data: {
           session_id: this.sessionId,
           username: this.credentials.username,
-          password: this.credentials.password
+          password: encryptedPassword
         }
       };
 
-      console.log('\nLogin Request:');
+      console.log('\nLogin Request with encrypted password:');
       console.log(requestToCurl(requestConfig));
 
       const { data } = await this.client.request(requestConfig);
-      
       console.log('Login Response:', data);
 
       return {
@@ -101,7 +118,7 @@ class AuthClient {
       return {
         success: loginResponse.success,
         session_id: this.sessionId,
-        challenge: challengeResponse.challenge
+        challenge: this.challenge
       };
     } catch (error) {
       console.error('Authentication flow failed:', error.message);
@@ -111,6 +128,14 @@ class AuthClient {
 
   getSessionId() {
     return this.sessionId;
+  }
+
+  getChallenge() {
+    return this.challenge;
+  }
+
+  getSalt() {
+    return this.salt;
   }
 }
 
