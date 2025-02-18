@@ -13,21 +13,24 @@ class AuthClient {
     });
     
     this.sessionId = null;
+    this.credentials = config.api.credentials;
   }
 
   /**
    * Get challenge token for login
-   * @param {string} username 
    * @returns {Promise<{challenge: string, session_id: string}>}
    */
-  async getChallenge(username) {
+  async getChallenge() {
     try {
       const { data } = await this.client.get(
-        `/api/auth/login/challenge?username=${encodeURIComponent(username)}`
+        `/api/auth/login/challenge?username=${encodeURIComponent(this.credentials.username)}`
       );
       
       this.sessionId = data.session_id;
-      return data;
+      return {
+        challenge: data.challenge,
+        session_id: data.session_id
+      };
     } catch (error) {
       console.error('Challenge request failed:', error.message);
       throw new Error('Failed to get challenge token');
@@ -35,12 +38,10 @@ class AuthClient {
   }
 
   /**
-   * Attempt login with credentials
-   * @param {string} username 
-   * @param {string} password 
-   * @returns {Promise<{success: boolean}>}
+   * Attempt login with configured credentials
+   * @returns {Promise<{success: boolean, session_id: string}>}
    */
-  async login(username, password) {
+  async login() {
     if (!this.sessionId) {
       throw new Error('Must get challenge before attempting login');
     }
@@ -48,11 +49,14 @@ class AuthClient {
     try {
       const { data } = await this.client.post('/api/auth/login?type=web', {
         session_id: this.sessionId,
-        username,
-        password
+        username: this.credentials.username,
+        password: this.credentials.password
       });
 
-      return data;
+      return {
+        success: true,
+        session_id: this.sessionId
+      };
     } catch (error) {
       console.error('Login failed:', error.message);
       throw new Error('Authentication failed');
@@ -60,19 +64,31 @@ class AuthClient {
   }
 
   /**
-   * Complete full authentication flow
-   * @param {string} username 
-   * @param {string} password 
-   * @returns {Promise<{success: boolean}>}
+   * Complete authentication flow and return session details
+   * @returns {Promise<{success: boolean, session_id: string, challenge: string}>}
    */
-  async authenticate(username, password) {
+  async authenticate() {
     try {
-      await this.getChallenge(username);
-      return await this.login(username, password);
+      const challengeResponse = await this.getChallenge();
+      const loginResponse = await this.login();
+
+      return {
+        success: loginResponse.success,
+        session_id: this.sessionId,
+        challenge: challengeResponse.challenge
+      };
     } catch (error) {
       console.error('Authentication flow failed:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Get current session ID
+   * @returns {string|null}
+   */
+  getSessionId() {
+    return this.sessionId;
   }
 }
 

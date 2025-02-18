@@ -1,25 +1,29 @@
 const AuthClient = require('./authClient');
 
-// Example usage
 async function main() {
   const auth = new AuthClient();
   
   try {
-    // Complete authentication flow
-    const result = await auth.authenticate('admin', 'your_password');
-    console.log('Authentication result:', result);
+    console.log('Starting authentication process...');
     
-    // Or step by step
-    // const challenge = await auth.getChallenge('admin');
-    // console.log('Challenge received:', challenge);
-    // const loginResult = await auth.login('admin', 'your_password');
-    // console.log('Login result:', loginResult);
+    const authResult = await auth.authenticate();
+    console.log('\nAuthentication successful!');
+    console.log('Session ID:', authResult.session_id);
+    
+    return authResult.session_id;
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('\nAuthentication error:', error.message);
+    return null;
   }
 }
 
 // Run the example
 if (require.main === module) {
-  main();
+  main().then(sessionId => {
+    if (sessionId) {
+      console.log('\nSession ID for API requests:', sessionId);
+    } else {
+      console.log('\nFailed to obtain session ID');
+    }
+  });
 }
