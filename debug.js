@@ -4,12 +4,12 @@ const requestToCurl = (config) => {
     
     let curl = `curl -X ${method.toUpperCase()} '${fullUrl}'`;
     
-    // Add headers
-    Object.entries(headers).forEach(([key, value]) => {
-      curl += ` \\\n  -H '${key}: ${value}'`;
-    });
+    if (headers) {
+      Object.entries(headers).forEach(([key, value]) => {
+        curl += ` \\\n  -H '${key}: ${value}'`;
+      });
+    }
     
-    // Add data if present
     if (data) {
       curl += ` \\\n  -d '${JSON.stringify(data)}'`;
     }

@@ -4,21 +4,19 @@ async function main() {
   const auth = new AuthClient();
   
   try {
-    const authResult = await auth.authenticate();
-    console.log('\nAuthentication successful!');
-    console.log('Session ID:', authResult.session_id);
-    
-    return authResult.session_id;
+    const result = await auth.authenticate();
+    console.log('\nAuthentication Result:', result);
+    return result;
   } catch (error) {
-    console.error('\nAuthentication error:', error.message);
+    console.error('\nAuthentication Error:', error.message);
     return null;
   }
 }
 
 if (require.main === module) {
-  main().then(sessionId => {
-    if (sessionId) {
-      console.log('\nSession ID for API requests:', sessionId);
+  main().then(result => {
+    if (result) {
+      console.log('\nSession ID for API requests:', result.session_id);
     } else {
       console.log('\nFailed to obtain session ID');
     }

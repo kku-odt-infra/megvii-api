@@ -1,7 +1,6 @@
 const axios = require('axios');
 const crypto = require('crypto');
 const config = require('./config');
-const { requestToCurl } = require('./debug');
 
 class AuthClient {
   constructor() {
@@ -21,9 +20,8 @@ class AuthClient {
   }
 
   encryptPassword(password, salt) {
-    return crypto
-      .createHash('sha256')
-      .update(password + salt)
+    return crypto.createHmac('sha256', salt)
+      .update(password)
       .digest('hex');
   }
 
@@ -37,27 +35,28 @@ class AuthClient {
       };
 
       console.log('\nChallenge Request:');
-      console.log(requestToCurl(requestConfig));
+      console.log('URL:', requestConfig.baseURL + requestConfig.url);
+      console.log('Method:', requestConfig.method.toUpperCase());
+      console.log('Headers:', requestConfig.headers);
 
-      const { data } = await this.client.request(requestConfig);
-      console.log('Challenge Response:', data);
+      const response = await this.client.request(requestConfig);
       
-      this.sessionId = data.session_id;
-      this.salt = data.salt;
-      this.challenge = data.challenge;
-      
-      return {
-        challenge: data.challenge,
-        session_id: data.session_id,
-        salt: data.salt
-      };
+      console.log('\nChallenge Response:');
+      console.log('Status:', response.status);
+      console.log('Data:', response.data);
+
+      // เก็บค่าที่ได้จาก response
+      this.sessionId = response.data.session_id;
+      this.salt = response.data.salt;
+      this.challenge = response.data.challenge;
+
+      return response.data;
     } catch (error) {
-      console.error('Challenge request failed:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method
-      });
+      console.error('\nChallenge request failed:', error.message);
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Data:', error.response.data);
+      }
       throw new Error('Failed to get challenge token');
     }
   }
@@ -68,6 +67,7 @@ class AuthClient {
     }
 
     try {
+      // เข้ารหัส password ด้วย HMAC-SHA256
       const encryptedPassword = this.encryptPassword(
         this.credentials.password,
         this.salt
@@ -86,22 +86,30 @@ class AuthClient {
       };
 
       console.log('\nLogin Request:');
-      console.log(requestToCurl(requestConfig));
+      console.log('URL:', requestConfig.baseURL + requestConfig.url);
+      console.log('Method:', requestConfig.method.toUpperCase());
+      console.log('Headers:', requestConfig.headers);
+      console.log('Data:', {
+        ...requestConfig.data,
+        password: `${encryptedPassword.substring(0, 10)}...` // แสดงบางส่วนของ password ที่เข้ารหัสแล้ว
+      });
 
-      const { data } = await this.client.request(requestConfig);
-      console.log('Login Response:', data);
+      const response = await this.client.request(requestConfig);
+      
+      console.log('\nLogin Response:');
+      console.log('Status:', response.status);
+      console.log('Data:', response.data);
 
       return {
         success: true,
         session_id: this.sessionId
       };
     } catch (error) {
-      console.error('Login failed:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method
-      });
+      console.error('\nLogin failed:', error.message);
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Data:', error.response.data);
+      }
       throw new Error('Authentication failed');
     }
   }
@@ -110,13 +118,20 @@ class AuthClient {
     try {
       console.log('\nStarting authentication flow...');
       console.log('Config:', {
-        baseUrl: config.api.baseUrl,
+        baseUrl: this.client.defaults.baseURL,
         username: this.credentials.username,
         hasPassword: !!this.credentials.password
       });
 
-      await this.getChallenge();  // ต้องเรียก getChallenge ก่อน
+      const challengeResponse = await this.getChallenge();
+      console.log('\nGot challenge:', {
+        session_id: this.sessionId,
+        hasSalt: !!this.salt,
+        hasChallenge: !!this.challenge
+      });
+
       const loginResponse = await this.login();
+      console.log('\nLogin completed:', loginResponse);
 
       return {
         success: loginResponse.success,
@@ -127,18 +142,6 @@ class AuthClient {
       console.error('Authentication flow failed:', error.message);
       throw error;
     }
-  }
-
-  getSessionId() {
-    return this.sessionId;
-  }
-
-  getChallenge() {
-    return this.challenge;
-  }
-
-  getSalt() {
-    return this.salt;
   }
 }
 
